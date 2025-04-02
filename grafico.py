@@ -6,7 +6,7 @@ import numpy as np
 from pandas.tseries import frequencies
 
 # Define constant
-rt60 = 0.23
+rt60 = 0.5
 w = 2.2 / rt60
 
 # Load data from CSV file (ensure it has 'i', 'j', 'k', 'F', and 'A' columns)
