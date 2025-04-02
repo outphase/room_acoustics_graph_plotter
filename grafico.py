@@ -108,7 +108,7 @@ plt.bar(
 )
 
 plt.xscale("log")
-plt.title("Modi Stazionari")
+plt.title(f"Modi Stazionari (RT60={rt60})")
 plt.xlabel("Frequenza (Hz)")
 plt.ylabel("Ampiezza (%)")
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
