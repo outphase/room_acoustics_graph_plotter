@@ -6,7 +6,8 @@ import numpy as np
 from pandas.tseries import frequencies
 
 # Define constant
-rt60 = 0.5
+# rt60 = 0.47
+rt60 = 0.8
 w = 2.2 / rt60
 
 # Load data from CSV file (ensure it has 'i', 'j', 'k', 'F', and 'A' columns)
@@ -31,13 +32,10 @@ labels = df["i"].astype(str) + "-" + df["j"].astype(str) + "-" + df["k"].astype(
 # Convert data types
 df["Frequency"] = pd.to_numeric(df["F"], errors="coerce")
 df["Amplitude"] = pd.to_numeric(df["A"], errors="coerce")
+df["Amplitude"] *= 100
 
 df = df.dropna()  # Remove any rows with invalid data
-
 df = df.sort_values(by="Frequency")  # Ensure frequency is sorted
-
-# Convert amplitude to percentage
-df["Amplitude"] *= 100
 
 # Sum overlapping bars
 # First, create an array of all frequencies to account for overlaps
@@ -68,6 +66,7 @@ for i, f in enumerate(base_frequencies):
 plt.figure(figsize=(12, 6))
 colors = np.random.rand(len(df))  # Generate random colors for each data point
 
+# Overlaps
 plt.bar(
     sums,
     sum_amps,
@@ -76,7 +75,20 @@ plt.bar(
     width=sum_widths,
     align="center",
 )
+# Center Black Bars for overlaps
+# for i, j in enumerate(sum_widths):
+#     sum_widths[i] *= 0.1
+#
+# plt.bar(
+#     sums,
+#     sum_amps,
+#     color=(0, 0, 0),
+#     width=sum_widths,
+#     align="center",
+# )
 
+
+# Orange bars and Black center bars
 plt.bar(
     frequencies,
     df["Amplitude"],
@@ -95,26 +107,13 @@ plt.bar(
     align="center",
 )
 
-# for i, j in enumerate(sum_widths):
-#     sum_widths[i] *= 0.1
-#
-# plt.bar(
-#     sums,
-#     sum_amps,
-#     color=(0, 0, 0),
-#     width=sum_widths,
-#     align="center",
-# )
-
 plt.xscale("log")
-# plt.xticks(rotation=45, ha="right", ticks=frequencies, labels=labels, y=-0.02)
 plt.title("Modi Stazionari")
 plt.xlabel("Frequenza (Hz)")
 plt.ylabel("Ampiezza (%)")
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 plt.tight_layout()
 plt.gca().xaxis.set_minor_formatter(
-    ticker.FuncFormatter(lambda x, pos: "{:.0f}".format(x))
+    ticker.FuncFormatter(lambda x, _: "{:.0f}".format(x))
 )
-# plt.gca().xaxis.set_major_locator(ticker.MultipleLocator(base=1.0116194403019))
 plt.show()
