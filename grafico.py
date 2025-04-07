@@ -1,9 +1,12 @@
 from matplotlib import ticker
-import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+
+import pandas as pd
+from pandas.tseries import frequencies
+
 import os
 import numpy as np
-from pandas.tseries import frequencies
 
 # Define constant
 # rt60 = 0.47
@@ -107,13 +110,23 @@ plt.bar(
     align="center",
 )
 
+
+def hz_to_semitones(x):
+    return 12 * np.log2(x / 440)
+
+
 plt.xscale("log")
 plt.title(f"Modi Stazionari (RT60={rt60})")
 plt.xlabel("Frequenza (Hz)")
 plt.ylabel("Ampiezza (%)")
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+# plt.gca().xaxis.set_minor_formatter(
+#     ticker.FuncFormatter(lambda x, _: f"{hz_to_semitones(x):.1f}".format(x))
+# )
+
+# formatter = FuncFormatter(lambda x, pos: f"{hz_to_semitones(x, pos):.1f}")
+# fig, ax = plt.subplots()
+# ax.xaxis.set_major_formatter(formatter)
+
 plt.tight_layout()
-plt.gca().xaxis.set_minor_formatter(
-    ticker.FuncFormatter(lambda x, _: "{:.0f}".format(x))
-)
 plt.show()
