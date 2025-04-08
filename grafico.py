@@ -1,17 +1,26 @@
+# Costanti ------------------------------------------------------------------
+
+# RT60 Attuale = 0.8
+# RT60 AMROC = 0.23
+# RT60 "Ideale" = 0.47
+RT60 = 0.8
+
+SUM_DEPTH = 2
+W = 2.2 / RT60
+
+# ----------------------------------------------------------------------------
+
 from matplotlib import ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
+from numpy._core.fromnumeric import size
+from numpy.typing import ArrayLike
 import pandas as pd
 from pandas.tseries import frequencies
 
 import os
 import numpy as np
-
-# Define constant
-# rt60 = 0.47
-rt60 = 0.8
-w = 2.2 / rt60
 
 # Load data from CSV file (ensure it has 'i', 'j', 'k', 'F', and 'A' columns)
 csv_file = "data.csv"  # Update with your actual file name
@@ -46,87 +55,90 @@ base_frequencies = np.unique(df["Frequency"])
 frequencies = base_frequencies
 widths = frequencies * 0
 for i, f in enumerate(widths):
-    widths[i] = w
-sums = []
-sum_widths = []
-sum_amps = []
+    widths[i] = W
+
 
 # Sum amplitudes for overlapping frequency points
-for i, f in enumerate(base_frequencies):
-    if i == base_frequencies.size - 1:
-        break
-    p1 = f + w / 2
-    p2 = base_frequencies[i + 1] - w / 2
-    if p1 > p2:
-        if p1 - p2 < 1:
-            continue
-        sums += [(p1 + p2) / 2]
-        sum_amps += [df["Amplitude"][i] + df["Amplitude"][i + 1]]
-        sum_widths += [p1 - p2]
+def calculate_overlaps(values=(ArrayLike, ArrayLike, ArrayLike)):
+    sums = []
+    sum_widths = []
+    sum_amps = []
+
+    for i, f in enumerate(values[0]):
+        if i == size(values[0]) - 1:
+            break
+        p1 = f + W / 2
+        p2 = values[0][i + 1] - W / 2
+        if p1 > p2:
+            if p1 - p2 < 1:
+                continue
+            sums += [(p1 + p2) / 2]
+            sum_amps += [values[1][i] + values[1][i + 1]]
+            sum_widths += [p1 - p2]
+
+    return (sums, sum_amps, sum_widths)
+
+
+def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike), draw_center=False):
+    plt.bar(
+        values[0],
+        values[1],
+        # color=plt.cm.viridis(np.linspace(0, 1, len(frequencies))),
+        color=(0.7, 0.3, 0, 0.5),
+        width=W,
+        align="center",
+    )
+
+    if not draw_center:
+        return
+    for i, _ in enumerate(widths):
+        values[2][i] *= 0.05
+    plt.bar(
+        values[0],
+        values[1],
+        color=(0, 0, 0),
+        width=values[2],
+        align="center",
+    )
 
 
 # Plot
 plt.figure(figsize=(12, 6))
 colors = np.random.rand(len(df))  # Generate random colors for each data point
 
+base = (frequencies, df["Amplitude"], widths)
+
 # Overlaps
-plt.bar(
-    sums,
-    sum_amps,
-    # color=plt.cm.viridis(np.linspace(0, 1, len(frequencies))),
-    color=(0.9, 0.4, 0, 0.5),
-    width=sum_widths,
-    align="center",
-)
-# Center Black Bars for overlaps
-# for i, j in enumerate(sum_widths):
-#     sum_widths[i] *= 0.1
-#
-# plt.bar(
-#     sums,
-#     sum_amps,
-#     color=(0, 0, 0),
-#     width=sum_widths,
-#     align="center",
-# )
+overlaps = [calculate_overlaps(base)]
+draw_bars(values=overlaps[0])
+for i in range(1, SUM_DEPTH):
+    overlaps += [calculate_overlaps(overlaps[i - 1])]
+    draw_bars(values=overlaps[i])
+
+# Main Freqs
+draw_bars(values=base, draw_center=True)
 
 
-# Orange bars and Black center bars
-plt.bar(
-    frequencies,
-    df["Amplitude"],
-    # color=plt.cm.viridis(np.linspace(0, 1, len(frequencies))),
-    color=(0.7, 0.3, 0, 0.5),
-    width=widths,
-    align="center",
-)
-for i, j in enumerate(widths):
-    widths[i] *= 0.05
-plt.bar(
-    frequencies,
-    df["Amplitude"],
-    color=(0, 0, 0),
-    width=widths,
-    align="center",
-)
+plt.xscale("log")
+plt.yscale("log" if SUM_DEPTH != 1 else "linear")
 
+plt.title(f"Modi Stazionari (RT60={RT60}, Depth={SUM_DEPTH})")
+plt.xlabel("Frequenza (Hz)")
+plt.ylabel("Ampiezza (%)")
+plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+
+""" Possible semitone fix
 
 def hz_to_semitones(x):
     return 12 * np.log2(x / 440)
 
-
-plt.xscale("log")
-plt.title(f"Modi Stazionari (RT60={rt60})")
-plt.xlabel("Frequenza (Hz)")
-plt.ylabel("Ampiezza (%)")
-plt.grid(True, which="both", linestyle="--", linewidth=0.5)
-# plt.gca().xaxis.set_minor_formatter(
-#     ticker.FuncFormatter(lambda x, _: f"{hz_to_semitones(x):.1f}".format(x))
-# )
-
-# formatter = FuncFormatter(lambda x, pos: f"{hz_to_semitones(x, pos):.1f}")
-# fig, ax = plt.subplots()
-# ax.xaxis.set_major_formatter(formatter)
+plt.gca().xaxis.set_minor_formatter(
+    ticker.FuncFormatter(lambda x, _: f"{hz_to_semitones(x):.1f}".format(x))
+)
+formatter = FuncFormatter(lambda x, pos: f"{hz_to_semitones(x, pos):.1f}")
+fig, ax = plt.subplots()
+ax.xaxis.set_major_formatter(formatter)
+"""
 
 plt.tight_layout()
 plt.show()
