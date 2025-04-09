@@ -3,18 +3,22 @@
 # RT60 Attuale = 0.8
 # RT60 AMROC = 0.23
 # RT60 "Ideale" = 0.47
-RT60 = 0.8
+RT60 = 0.26
 
-SUM_DEPTH = 2
+SUM_DEPTH = 20
 W = 2.2 / RT60
+
+STARTING_COLOR = (0.3, 0.4, 0, 0.5)
 
 # ----------------------------------------------------------------------------
 
+from decimal import Clamped
 from matplotlib import ticker
+from matplotlib.colors import BASE_COLORS
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 
-from numpy._core.fromnumeric import size
+from numpy._core.fromnumeric import size, sort
 from numpy.typing import ArrayLike
 import pandas as pd
 from pandas.tseries import frequencies
@@ -53,39 +57,55 @@ df = df.sort_values(by="Frequency")  # Ensure frequency is sorted
 # First, create an array of all frequencies to account for overlaps
 base_frequencies = np.unique(df["Frequency"])
 frequencies = base_frequencies
-widths = frequencies * 0
-for i, f in enumerate(widths):
-    widths[i] = W
+widths = [W] * frequencies.size
 
 
 # Sum amplitudes for overlapping frequency points
-def calculate_overlaps(values=(ArrayLike, ArrayLike, ArrayLike)):
-    sums = []
-    sum_widths = []
+# Frequency, Amplutude, Width, Color
+def calculate_overlaps(values=(ArrayLike, ArrayLike, ArrayLike, ArrayLike)):
+    sum_freqs = []
     sum_amps = []
+    sum_widths = []
+    sum_colors = []
 
-    for i, f in enumerate(values[0]):
+    for i, f1 in enumerate(values[0]):
         if i == size(values[0]) - 1:
             break
-        p1 = f + W / 2
-        p2 = values[0][i + 1] - W / 2
+
+        f2 = values[0][i + 1]
+        w1 = values[2][i] / 2
+        w2 = values[2][i + 1] / 2
+        p1 = f1 + w1
+        p2 = f2 - w2
+
         if p1 > p2:
-            if p1 - p2 < 1:
+            # Skip bands that are too short
+            if p1 - p2 < f1 * 0.01:
                 continue
-            sums += [(p1 + p2) / 2]
+
+            sum_freqs += [(p1 + p2) / 2]
             sum_amps += [values[1][i] + values[1][i + 1]]
             sum_widths += [p1 - p2]
+            sum_colors += [
+                tuple(
+                    map(
+                        lambda a, b: max(min(a + b, 1), 0),
+                        values[3][i],
+                        (0.1, -0.03, 0, 0),
+                    )
+                )
+            ]
 
-    return (sums, sum_amps, sum_widths)
+    return (sum_freqs, sum_amps, sum_widths, sum_colors)
 
 
-def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike), draw_center=False):
+# Frequency, Amplutude, Width, Color
+def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike, ArrayLike), draw_center=False):
     plt.bar(
         values[0],
         values[1],
-        # color=plt.cm.viridis(np.linspace(0, 1, len(frequencies))),
-        color=(0.7, 0.3, 0, 0.5),
-        width=W,
+        color=values[3],
+        width=values[2],
         align="center",
     )
 
@@ -106,14 +126,25 @@ def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike), draw_center=False):
 plt.figure(figsize=(12, 6))
 colors = np.random.rand(len(df))  # Generate random colors for each data point
 
-base = (frequencies, df["Amplitude"], widths)
+# Frequency, Amplutude, Width, Color
+base = (frequencies, df["Amplitude"], widths, [STARTING_COLOR] * frequencies.size)
 
 # Overlaps
 overlaps = [calculate_overlaps(base)]
-draw_bars(values=overlaps[0])
-for i in range(1, SUM_DEPTH):
-    overlaps += [calculate_overlaps(overlaps[i - 1])]
-    draw_bars(values=overlaps[i])
+for i in range(0, SUM_DEPTH):
+    new_overlap = calculate_overlaps(overlaps[i])
+    if new_overlap == ([], [], [], []):
+        print(f"Out of overlaps at iteration {i}")
+        break
+    # new_overlap = sorted(new_overlap, key=lambda a: a[0])
+    overlaps += [new_overlap]
+
+for i, o in enumerate(overlaps):
+    for i, f in enumerate(o):
+        print(f)
+        print("")
+
+    draw_bars(values=o)
 
 # Main Freqs
 draw_bars(values=base, draw_center=True)
