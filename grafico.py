@@ -151,7 +151,7 @@ overlaps_db = [base] + overlaps
 overlaps_db = list(map(percent_to_db, overlaps_db))
 
 if SHOW_PERCENT:
-    for i, o in enumerate(overlaps):
+    for i, o in enumerate(reversed(overlaps)):
         draw_bars(values=o)
 
     # Main Freqs
