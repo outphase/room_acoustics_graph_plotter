@@ -11,7 +11,9 @@ STARTING_COLOR = (0.3, 0.4, 0, 0.5)
 
 Y_AS_LOG = False
 SHOW_DB = True
-SHOW_PERCENT = False
+SHOW_LINES_DB = True
+SHOW_PERCENT = True
+SHOW_LINES_PERCENT = False
 
 # ----------------------------------------------------------------------------
 
@@ -48,10 +50,9 @@ labels = df["i"].astype(str) + "-" + df["j"].astype(str) + "-" + df["k"].astype(
 # Convert data types
 df["Frequency"] = pd.to_numeric(df["F"], errors="coerce")
 df["Amplitude"] = pd.to_numeric(df["A"], errors="coerce")
-df["Amplitude"] *= 100
+amplitudes = list(map(lambda x: x * 100, df["Amplitude"]))
 
 df = df.dropna()  # Remove any rows with invalid data
-df = df.sort_values(by="Frequency")  # Ensure frequency is sorted
 
 # Sum overlapping bars
 # First, create an array of all frequencies to account for overlaps
@@ -111,37 +112,29 @@ def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike, ArrayLike), draw_center=F
 
     if not draw_center:
         return
-    slim_values = values
-    for i, _ in enumerate(slim_values[2]):
-        slim_values[2][i] *= 0.05
     plt.bar(
-        slim_values[0],
-        slim_values[1],
+        values[0],
+        values[1],
         color=(0, 0, 0),
-        width=slim_values[2],
+        width=list(map(lambda x: x * 0.03, values[2])),
         align="center",
     )
 
 
 def percent_to_db(x):
-    new = (
+    return (
         x[0],
-        list(map(lambda y: 20 * math.log(y), x[1])),
+        list(map(lambda y: 20 * math.log10(y), x[1])),
         x[2],
         tuple(map(lambda _: (0.9, 0, 0, 1), x[3])),
     )
-    print("----------------")
-    print(x[1])
-    print()
-    print(new[1])
-    return new
 
 
 # Plot
 plt.figure(figsize=(12, 6))
 colors = np.random.rand(len(df))  # Generate random colors for each data point
 
-base = (frequencies, df["Amplitude"], widths, [STARTING_COLOR] * frequencies.size)
+base = (frequencies, amplitudes, widths, [STARTING_COLOR] * frequencies.size)
 
 # Overlaps
 overlaps = [calculate_overlaps(base)]
@@ -155,18 +148,19 @@ for i in range(0, SUM_DEPTH):
 
 # Scaled to dB
 overlaps_db = [base] + overlaps
-overlaps_db = map(percent_to_db, overlaps_db)
+overlaps_db = list(map(percent_to_db, overlaps_db))
 
 if SHOW_PERCENT:
     for i, o in enumerate(overlaps):
         draw_bars(values=o)
 
     # Main Freqs
-    draw_bars(values=base, draw_center=False)
+    draw_bars(values=base, draw_center=SHOW_LINES_PERCENT)
 
 if SHOW_DB:
-    for i, o in enumerate(overlaps_db):
-        draw_bars(values=o)
+    for i, o in enumerate(reversed(overlaps_db)):
+        draw_center = i == len(overlaps_db) - 1 and SHOW_LINES_DB
+        draw_bars(values=o, draw_center=draw_center)
 
 plt.xscale("log")
 if Y_AS_LOG:
@@ -174,7 +168,7 @@ if Y_AS_LOG:
 
 plt.title(f"Modi Stazionari (RT60={RT60}, Depth={SUM_DEPTH})")
 plt.xlabel("Frequenza (Hz)")
-plt.ylabel("Ampiezza (%)")
+plt.ylabel("Ampiezza")
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 
 """ Possible semitone fix
