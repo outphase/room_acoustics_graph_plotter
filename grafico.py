@@ -2,7 +2,6 @@
 
 # RT60 Attuale = 0.8
 # RT60 AMROC = 0.23
-# RT60 "Ideale" = 0.47
 RT60 = 0.26
 
 SUM_DEPTH = 20
@@ -10,18 +9,19 @@ W = 2.2 / RT60
 
 STARTING_COLOR = (0.3, 0.4, 0, 0.5)
 
+Y_AS_LOG = False
+SHOW_DB = True
+SHOW_PERCENT = False
+
 # ----------------------------------------------------------------------------
 
-from decimal import Clamped
-from matplotlib import ticker
-from matplotlib.colors import BASE_COLORS
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 
-from numpy._core.fromnumeric import size, sort
+from numpy._core.fromnumeric import size
 from numpy.typing import ArrayLike
 import pandas as pd
 from pandas.tseries import frequencies
+import math
 
 import os
 import numpy as np
@@ -91,7 +91,7 @@ def calculate_overlaps(values=(ArrayLike, ArrayLike, ArrayLike, ArrayLike)):
                     map(
                         lambda a, b: max(min(a + b, 1), 0),
                         values[3][i],
-                        (0.1, -0.03, 0, 0),
+                        (0, -0.03, 0.1, 0),
                     )
                 )
             ]
@@ -111,22 +111,36 @@ def draw_bars(values=(ArrayLike, ArrayLike, ArrayLike, ArrayLike), draw_center=F
 
     if not draw_center:
         return
-    for i, _ in enumerate(widths):
-        values[2][i] *= 0.05
+    slim_values = values
+    for i, _ in enumerate(slim_values[2]):
+        slim_values[2][i] *= 0.05
     plt.bar(
-        values[0],
-        values[1],
+        slim_values[0],
+        slim_values[1],
         color=(0, 0, 0),
-        width=values[2],
+        width=slim_values[2],
         align="center",
     )
+
+
+def percent_to_db(x):
+    new = (
+        x[0],
+        list(map(lambda y: 20 * math.log(y), x[1])),
+        x[2],
+        tuple(map(lambda _: (0.9, 0, 0, 1), x[3])),
+    )
+    print("----------------")
+    print(x[1])
+    print()
+    print(new[1])
+    return new
 
 
 # Plot
 plt.figure(figsize=(12, 6))
 colors = np.random.rand(len(df))  # Generate random colors for each data point
 
-# Frequency, Amplutude, Width, Color
 base = (frequencies, df["Amplitude"], widths, [STARTING_COLOR] * frequencies.size)
 
 # Overlaps
@@ -139,19 +153,24 @@ for i in range(0, SUM_DEPTH):
     # new_overlap = sorted(new_overlap, key=lambda a: a[0])
     overlaps += [new_overlap]
 
-for i, o in enumerate(overlaps):
-    for i, f in enumerate(o):
-        print(f)
-        print("")
+# Scaled to dB
+overlaps_db = [base] + overlaps
+overlaps_db = map(percent_to_db, overlaps_db)
 
-    draw_bars(values=o)
+if SHOW_PERCENT:
+    for i, o in enumerate(overlaps):
+        draw_bars(values=o)
 
-# Main Freqs
-draw_bars(values=base, draw_center=True)
+    # Main Freqs
+    draw_bars(values=base, draw_center=False)
 
+if SHOW_DB:
+    for i, o in enumerate(overlaps_db):
+        draw_bars(values=o)
 
 plt.xscale("log")
-plt.yscale("log" if SUM_DEPTH != 1 else "linear")
+if Y_AS_LOG:
+    plt.yscale("log")
 
 plt.title(f"Modi Stazionari (RT60={RT60}, Depth={SUM_DEPTH})")
 plt.xlabel("Frequenza (Hz)")
