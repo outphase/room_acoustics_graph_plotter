@@ -13,7 +13,9 @@ Y_AS_LOG = False
 SHOW_DB = True
 SHOW_LINES_DB = True
 SHOW_PERCENT = True
-SHOW_LINES_PERCENT = False
+SHOW_LINES_PERCENT = True
+
+csv_file = "data.csv"  # Update with your actual file name
 
 # ----------------------------------------------------------------------------
 
@@ -28,9 +30,6 @@ import math
 import os
 import numpy as np
 
-# Load data from CSV file (ensure it has 'i', 'j', 'k', 'F', and 'A' columns)
-csv_file = "data.csv"  # Update with your actual file name
-
 # Check if file exists
 if not os.path.exists(csv_file):
     raise FileNotFoundError(
@@ -39,26 +38,43 @@ if not os.path.exists(csv_file):
 
 df = pd.read_csv(csv_file)
 
+# Debugging: Print the loaded DataFrame
+print("DataFrame after loading:")
+print(df.head())
+print("DataFrame info:")
+print(df.info())
+
 # Check if required columns exist
 required_columns = {"i", "j", "k", "F", "A"}
 if not required_columns.issubset(df.columns):
     raise ValueError(f"CSV file must contain columns: {required_columns}")
 
-# Create bar labels by concatenating 'i', 'j', and 'k'
-labels = df["i"].astype(str) + "-" + df["j"].astype(str) + "-" + df["k"].astype(str)
-
 # Convert data types
 df["Frequency"] = pd.to_numeric(df["F"], errors="coerce")
 df["Amplitude"] = pd.to_numeric(df["A"], errors="coerce")
-amplitudes = list(map(lambda x: x * 100, df["Amplitude"]))
+
+# Debugging: Check for invalid data
+print("DataFrame after conversion:")
+print(df.head())
 
 df = df.dropna()  # Remove any rows with invalid data
+
+# Debugging: Check if DataFrame is empty
+if df.empty:
+    raise ValueError("The processed DataFrame is empty. Check the input data for invalid or missing values.")
+
+# Create bar labels by concatenating 'i', 'j', and 'k'
+labels = df["i"].astype(str) + "-" + df["j"].astype(str) + "-" + df["k"].astype(str)
 
 # Sum overlapping bars
 # First, create an array of all frequencies to account for overlaps
 base_frequencies = np.unique(df["Frequency"])
-frequencies = base_frequencies
-widths = [W] * frequencies.size
+frequencies = df["Frequency"].values  # Ensure this matches the length of amplitudes
+amplitudes = df["Amplitude"].values * 100 # Extract amplitudes
+widths = [W] * len(frequencies)  # Match the length of frequencies
+colors = [STARTING_COLOR] * len(frequencies)  # Match the length of frequencies
+
+base = (frequencies, amplitudes, widths, colors)
 
 
 # Sum amplitudes for overlapping frequency points
